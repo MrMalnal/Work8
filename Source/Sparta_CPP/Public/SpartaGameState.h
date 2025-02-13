@@ -24,14 +24,18 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Level")
 	int32 CurrentLevelIndex;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Level")
+	int32 CurrentWave;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Level")
 	int32 MaxLevel;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level")
+	int32 WaveSpawnMultiplier;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
 	TArray<FName> LevelMapNames;
 
+	virtual void BeginPlay() override;
+
 	FTimerHandle LevelTimerHandle;
 	FTimerHandle HUDUpdateTimerHandle;
-
-	virtual void BeginPlay() override;
 
 	UFUNCTION(BlueprintPure, Category = "Score")
 	int32 GetScore() const;

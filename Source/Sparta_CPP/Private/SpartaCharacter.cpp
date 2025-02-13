@@ -1,5 +1,6 @@
 #include "SpartaCharacter.h"
 #include "SpartaPlayerController.h"
+#include "SpartaGameInstance.h"
 #include "SpartaGameState.h"
 #include "EnhancedInputComponent.h"
 #include "Camera/CameraComponent.h"
@@ -20,9 +21,13 @@ ASpartaCharacter::ASpartaCharacter()
 	CameraComp->SetupAttachment(SpringArmComp, USpringArmComponent::SocketName);
 	CameraComp->bUsePawnControlRotation = false;
 
-	OverheadWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverHeadWidget"));
-	OverheadWidget->SetupAttachment(GetMesh());
-	OverheadWidget->SetWidgetSpace(EWidgetSpace::Screen);
+	OverheadHPWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverHeadHPWidget"));
+	OverheadHPWidget->SetupAttachment(GetMesh());
+	OverheadHPWidget->SetWidgetSpace(EWidgetSpace::Screen);
+
+	OverheadScoreWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverHeadScoreWidget"));
+	OverheadScoreWidget->SetupAttachment(GetMesh());
+	OverheadScoreWidget->SetWidgetSpace(EWidgetSpace::Screen);
 
 	NormalSpeed = 600.0f;
 	SprintSpeedMultiplier = 1.7f;
@@ -161,13 +166,50 @@ void ASpartaCharacter::OnDeath()
 
 void ASpartaCharacter::UpdateOverHeadHP()
 {
-	if (!OverheadWidget) return;
+	if (!OverheadHPWidget) return;
 
-	UUserWidget* OverheadHPWidgetInstance = OverheadWidget->GetUserWidgetObject();
+	UUserWidget* OverheadHPWidgetInstance = OverheadHPWidget->GetUserWidgetObject();
 	if (!OverheadHPWidgetInstance) return;
 
 	if (UTextBlock* HPText = Cast<UTextBlock>(OverheadHPWidgetInstance->GetWidgetFromName(TEXT("OverHeadHP"))))
 	{
-		HPText->SetText(FText::FromString(FString::Printf(TEXT("%.0f / %.0f"), Health, MaxHealth)));
+		HPText->SetText(FText::FromString(FString::Printf(TEXT("HP : %.0f / %.0f"), Health, MaxHealth)));
 	}
+}
+
+void ASpartaCharacter::UpdateOverHeadScore()
+{
+	if (!OverheadScoreWidget) return;
+
+	UUserWidget* OverheadScoreWidgetInstance = OverheadScoreWidget->GetUserWidgetObject();
+	if (!OverheadScoreWidgetInstance) return;
+
+	if (USpartaGameInstance* SpartaGameInstance = GetWorld() ? GetWorld()->GetGameInstance<USpartaGameInstance>() : nullptr)
+	{
+		if (UTextBlock* ScoreText = Cast<UTextBlock>(OverheadScoreWidgetInstance->GetWidgetFromName(TEXT("OverHeadScore"))))
+		{
+			ScoreText->SetText(FText::FromString(FString::Printf(TEXT("Score : %d"), SpartaGameInstance->TotalScore)));
+		}
+	}
+}
+
+float ASpartaCharacter::GetNormalSpeed() const
+{
+	return NormalSpeed;
+}
+
+float ASpartaCharacter::GetSprintSpeed() const
+{
+	return SprintSpeed;
+}
+
+void ASpartaCharacter::SetNormalSpeed(float NewSpeed)
+{
+	this->NormalSpeed = NewSpeed;
+	GetCharacterMovement()->MaxWalkSpeed = NormalSpeed;
+}
+
+void ASpartaCharacter::SetSprintSpeed(float NewSpeed)
+{
+	this->SprintSpeed = NewSpeed;
 }

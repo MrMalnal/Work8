@@ -1,5 +1,6 @@
 #include "SpawnVolume.h"
 #include "Components/BoxComponent.h"
+#include "SpartaGameInstance.h"
 
 ASpawnVolume::ASpawnVolume()
 {
@@ -11,7 +12,7 @@ ASpawnVolume::ASpawnVolume()
 	SpawningBox = CreateDefaultSubobject<UBoxComponent>(TEXT("SpawningBox"));
 	SpawningBox->SetupAttachment(Scene);
 
-	ItemDataTable = nullptr;
+	ItemDataTables.SetNum(3);
 }
 
 AActor* ASpawnVolume::SpawnRandomItem()
@@ -29,31 +30,38 @@ AActor* ASpawnVolume::SpawnRandomItem()
 
 FItemSpawnRow* ASpawnVolume::GetRandomItem() const
 {
-	if (!ItemDataTable) return nullptr;
+	if (ItemDataTables.IsEmpty()) return nullptr;
 
-	TArray<FItemSpawnRow*> AllRows;
-	static const FString ContextString(TEXT("ItemSpawnContext"));
-	ItemDataTable->GetAllRows(ContextString, AllRows);
-
-	if (AllRows.IsEmpty()) return nullptr;
-
-	float TotalChance = 0.0f;
-	for (const FItemSpawnRow* Row : AllRows)
+	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		if (Row)
+		if (USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance))
 		{
-			TotalChance += Row->SpawnChance;
-		}
-	}
+			const int& Wave = SpartaGameInstance->CurrentWave;
+			TArray<FItemSpawnRow*> AllRows;
+			static const FString ContextString(TEXT("ItemSpawnContext"));
+			ItemDataTables[Wave - 1]->GetAllRows(ContextString, AllRows);
 
-	const float RandValue = FMath::FRandRange(0.0f, TotalChance);
-	float AccumulateChance = 0.0f;
-	for (FItemSpawnRow* Row : AllRows)
-	{
-		AccumulateChance += Row->SpawnChance;
-		if (RandValue <= AccumulateChance)
-		{
-			return Row;
+			if (AllRows.IsEmpty()) return nullptr;
+
+			float TotalChance = 0.0f;
+			for (const FItemSpawnRow* Row : AllRows)
+			{
+				if (Row)
+				{
+					TotalChance += Row->SpawnChance;
+				}
+			}
+
+			const float RandValue = FMath::FRandRange(0.0f, TotalChance);
+			float AccumulateChance = 0.0f;
+			for (FItemSpawnRow* Row : AllRows)
+			{
+				AccumulateChance += Row->SpawnChance;
+				if (RandValue <= AccumulateChance)
+				{
+					return Row;
+				}
+			}
 		}
 	}
 

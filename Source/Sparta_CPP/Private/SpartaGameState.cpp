@@ -1,6 +1,7 @@
 #include "SpartaGameState.h"
 #include "SpartaGameInstance.h"
 #include "SpartaPlayerController.h"
+#include "SpartaCharacter.h"
 #include "SpawnVolume.h"
 #include "CoinItem.h"
 #include "Kismet/GameplayStatics.h"
@@ -15,7 +16,9 @@ ASpartaGameState::ASpartaGameState()
 	ItemToSpawn = 40;
 	LevelDuration = 30.0f;
 	CurrentLevelIndex = 0;
+	CurrentWave = 1;
 	MaxLevel = 3;
+	WaveSpawnMultiplier = 10;
 }
 
 void ASpartaGameState::BeginPlay()
@@ -66,8 +69,11 @@ void ASpartaGameState::StartLevel()
 		if (SpartaGameInstance)
 		{
 			CurrentLevelIndex = SpartaGameInstance->CurrentLevelIndex;
+			CurrentWave = SpartaGameInstance->CurrentWave;
+			ItemToSpawn = SpartaGameInstance->ItemToSpawn;
 		}
 	}
+	UE_LOG(LogTemp, Warning, TEXT("Level : %d, Wave : %d Start!"), CurrentLevelIndex + 1, CurrentWave);
 
 	SpawnedCoinCount = 0;
 	CollectedCoinCount = 0;
@@ -75,7 +81,8 @@ void ASpartaGameState::StartLevel()
 	TArray<AActor*> FoundVolumes;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
 
-	for (int32 i = 0; i < ItemToSpawn; i++)
+	UE_LOG(LogTemp, Warning, TEXT("ItemToSpawn : %d"), ItemToSpawn + (CurrentWave - 1) * WaveSpawnMultiplier)
+	for (int32 i = 0; i < (ItemToSpawn + CurrentWave * WaveSpawnMultiplier); i++)
 	{
 		if (FoundVolumes.Num() > 0)
 		{
@@ -127,8 +134,21 @@ void ASpartaGameState::EndLevel()
 		if (SpartaGameInstance)
 		{
 			AddScore(Score);
-			CurrentLevelIndex++;
-			SpartaGameInstance->CurrentLevelIndex = CurrentLevelIndex;
+			CurrentWave++;
+			if (CurrentWave <= 3)
+			{
+				SpartaGameInstance->CurrentWave = CurrentWave;
+				SpartaGameInstance->ItemToSpawn = ItemToSpawn;
+			}
+			else if(CurrentWave > 3)
+			{
+				CurrentLevelIndex++;
+				CurrentWave = 1;
+				ItemToSpawn += 5;
+				SpartaGameInstance->CurrentLevelIndex = CurrentLevelIndex;
+				SpartaGameInstance->CurrentWave = CurrentWave;
+				SpartaGameInstance->ItemToSpawn = ItemToSpawn;
+			}
 		}
 	}
 
@@ -155,7 +175,7 @@ void ASpartaGameState::OnGameOver()
 		if (ASpartaPlayerController* SpartaPlayerController = Cast<ASpartaPlayerController>(PlayerController))
 		{
 			SpartaPlayerController->SetPause(true);
-			SpartaPlayerController->ShowMainMenu(true);
+			SpartaPlayerController->ShowGameOverMenu();
 		}
 	}
 }
@@ -174,23 +194,26 @@ void ASpartaGameState::UpdateHUD()
 					TimeText->SetText(FText::FromString(FString::Printf(TEXT("Time : %.1f"), RemainingTime)));
 				}
 
-				if (UTextBlock* ScoreText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Score"))))
+				if (ACharacter* Character = SpartaPlayerController->GetCharacter())
 				{
-					if (UGameInstance* GameInstance = GetGameInstance())
+					if (ASpartaCharacter* SpartaCharacter = Cast<ASpartaCharacter>(Character))
 					{
-						USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
-						if (SpartaGameInstance)
-						{
-							ScoreText->SetText(FText::FromString(FString::Printf(TEXT("Score : %d"), SpartaGameInstance->TotalScore)));
-						}
+						SpartaCharacter->UpdateOverHeadScore();
 					}
 				}
-
 				if (UTextBlock* LevelIndexText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Level"))))
 				{
 					if (UGameInstance* GameInstance = GetGameInstance())
 					{
 						LevelIndexText->SetText(FText::FromString(FString::Printf(TEXT("Level : %d"), CurrentLevelIndex + 1)));
+					}
+				}
+
+				if (UTextBlock* WaveIndexText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Wave"))))
+				{
+					if (UGameInstance* GameInstance = GetGameInstance())
+					{
+						WaveIndexText->SetText(FText::FromString(FString::Printf(TEXT("Wave : %d"), CurrentWave)));
 					}
 				}
 			}

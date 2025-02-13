@@ -1,4 +1,5 @@
 #include "SpartaPlayerController.h"
+#include "SpartaGameMode.h"
 #include "SpartaGameState.h"
 #include "SpartaGameInstance.h"
 #include "EnhancedInputSubsystems.h"
@@ -37,7 +38,7 @@ void ASpartaPlayerController::BeginPlay()
 	FString CurrentMapName = GetWorld()->GetMapName();
 	if (CurrentMapName.Contains("MenuLevel"))
 	{
-		ShowMainMenu(false);
+		ShowMainMenu();
 	}
 }
 
@@ -61,6 +62,12 @@ void ASpartaPlayerController::ShowGameHUD()
 			MainMenuWidgetInstance = nullptr;
 		}
 
+		if (GameOverMenuWidgetInstance)
+		{
+			GameOverMenuWidgetInstance->RemoveFromParent();
+			GameOverMenuWidgetInstance = nullptr;
+		}
+
 		if (HUDWidgetClass)
 		{
 			HUDWidgetInstance = CreateWidget<UUserWidget>(this, HUDWidgetClass);
@@ -81,7 +88,7 @@ void ASpartaPlayerController::ShowGameHUD()
 	}
 }
 
-void ASpartaPlayerController::ShowMainMenu(bool bIsRestart)
+void ASpartaPlayerController::ShowMainMenu()
 {
 	if (HUDWidgetInstance)
 	{
@@ -95,6 +102,12 @@ void ASpartaPlayerController::ShowMainMenu(bool bIsRestart)
 		MainMenuWidgetInstance = nullptr;
 	}
 
+	if (GameOverMenuWidgetInstance)
+	{
+		GameOverMenuWidgetInstance->RemoveFromParent();
+		GameOverMenuWidgetInstance = nullptr;
+	}
+
 	if (MainMenuWidgetClass)
 	{
 		MainMenuWidgetInstance = CreateWidget<UUserWidget>(this, MainMenuWidgetClass);
@@ -104,35 +117,78 @@ void ASpartaPlayerController::ShowMainMenu(bool bIsRestart)
 
 			bShowMouseCursor = true;
 			SetInputMode(FInputModeUIOnly());
+		}
+
+		if (UTextBlock* StartButtonText = Cast<UTextBlock>(MainMenuWidgetInstance->GetWidgetFromName(TEXT("StartButtonText"))))
+		{
+			StartButtonText->SetText(FText::FromString(TEXT("Start")));
+		}
+
+		if (UTextBlock* ExitButtonText = Cast<UTextBlock>(MainMenuWidgetInstance->GetWidgetFromName(TEXT("ExitButtonText"))))
+		{
+			ExitButtonText->SetText(FText::FromString(TEXT("Exit")));
+		}
+	}
+}
+
+void ASpartaPlayerController::ShowGameOverMenu()
+{
+	if (HUDWidgetInstance)
+	{
+		HUDWidgetInstance->RemoveFromParent();
+		HUDWidgetInstance = nullptr;
+	}
+
+	if (MainMenuWidgetInstance)
+	{
+		MainMenuWidgetInstance->RemoveFromParent();
+		MainMenuWidgetInstance = nullptr;
+	}
+
+	if (GameOverMenuWidgetInstance)
+	{
+		GameOverMenuWidgetInstance->RemoveFromParent();
+		GameOverMenuWidgetInstance = nullptr;
+	}
+
+	if (GameOverMenuWidgetClass)
+	{
+		GameOverMenuWidgetInstance = CreateWidget<UUserWidget>(this, GameOverMenuWidgetClass);
+		if (GameOverMenuWidgetInstance)
+		{
+			GameOverMenuWidgetInstance->AddToViewport();
+
+			bShowMouseCursor = true;
+			SetInputMode(FInputModeUIOnly());
 
 		}
 
-		if (UTextBlock* ButtonText = Cast<UTextBlock>(MainMenuWidgetInstance->GetWidgetFromName(TEXT("StartButtonText"))))
+		if (UTextBlock* RestartButtonText = Cast<UTextBlock>(GameOverMenuWidgetInstance->GetWidgetFromName(TEXT("RestartButtonText"))))
 		{
-			if (bIsRestart)
-			{
-				ButtonText->SetText(FText::FromString(TEXT("Restart")));
-			}
-			else
-			{
-				ButtonText->SetText(FText::FromString(TEXT("Start")));
-			}
+			RestartButtonText->SetText(FText::FromString(TEXT("Restart")));
 		}
 
-		if (bIsRestart)
+		if (UTextBlock* MainButtonText = Cast<UTextBlock>(GameOverMenuWidgetInstance->GetWidgetFromName(TEXT("MainButtonText"))))
 		{
-			UFunction* PlayAnimFunc = MainMenuWidgetInstance->FindFunction(FName("PlayGameOverAnim"));
-			if (PlayAnimFunc)
-			{
-				MainMenuWidgetInstance->ProcessEvent(PlayAnimFunc, nullptr);
-			}
+			MainButtonText->SetText(FText::FromString(TEXT("Back To Main")));
+		}
 
-			if (UTextBlock* TotalScoreText = Cast<UTextBlock>(MainMenuWidgetInstance->GetWidgetFromName(TEXT("TotalScoreText"))))
+		if (UTextBlock* ExitButtonText = Cast<UTextBlock>(GameOverMenuWidgetInstance->GetWidgetFromName(TEXT("ExitButtonText"))))
+		{
+			ExitButtonText->SetText(FText::FromString(TEXT("Exit")));
+		}
+
+		UFunction* PlayAnimFunc = GameOverMenuWidgetInstance->FindFunction(FName("PlayGameOverAnim"));
+		if (PlayAnimFunc)
+		{
+			GameOverMenuWidgetInstance->ProcessEvent(PlayAnimFunc, nullptr);
+		}
+
+		if (UTextBlock* TotalScoreText = Cast<UTextBlock>(GameOverMenuWidgetInstance->GetWidgetFromName(TEXT("TotalScoreText"))))
+		{
+			if (USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(UGameplayStatics::GetGameInstance(this)))
 			{
-				if (USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(UGameplayStatics::GetGameInstance(this)))
-				{
-					TotalScoreText->SetText(FText::FromString(FString::Printf(TEXT("Total Score : %d"), SpartaGameInstance->TotalScore)));
-				}
+				TotalScoreText->SetText(FText::FromString(FString::Printf(TEXT("Total Score : %d"), SpartaGameInstance->TotalScore)));
 			}
 		}
 	}
@@ -144,8 +200,22 @@ void ASpartaPlayerController::StartGame()
 	{
 		SpartaGameInstance->CurrentLevelIndex = 0;
 		SpartaGameInstance->TotalScore = 0;
+		SpartaGameInstance->CurrentWave = 1;
 	}
 
 	UGameplayStatics::OpenLevel(GetWorld(), FName("BasicLevel"));
 	SetPause(false);
+}
+
+void ASpartaPlayerController::BackToMainMenu()
+{
+	if (USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(UGameplayStatics::GetGameInstance(this)))
+	{
+		SpartaGameInstance->CurrentLevelIndex = 0;
+		SpartaGameInstance->TotalScore = 0;
+		SpartaGameInstance->CurrentWave = 1;
+
+		UGameplayStatics::OpenLevel(GetWorld(), FName(TEXT("MenuLevel")));
+		ShowMainMenu();
+	}
 }

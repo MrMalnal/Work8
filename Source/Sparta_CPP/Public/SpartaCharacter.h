@@ -22,12 +22,21 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* CameraComp;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
-	UWidgetComponent* OverheadWidget;
+	UWidgetComponent* OverheadHPWidget;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	UWidgetComponent* OverheadScoreWidget;
 
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetHealth() const;
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void AddHealth(float Amount);
+
+	void UpdateOverHeadHP();
+	void UpdateOverHeadScore();
+	float GetNormalSpeed() const;
+	float GetSprintSpeed() const;
+	void SetNormalSpeed(float NewSpeed);
+	void SetSprintSpeed(float NewSpeed);
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
@@ -43,6 +52,10 @@ protected:
 		AController* EventInstigator,
 		AActor* DamageCauser) override;
 
+	float NormalSpeed;
+	float SprintSpeedMultiplier;
+	float SprintSpeed;
+
 	UFUNCTION()
 	void Move(const FInputActionValue& value);
 	UFUNCTION()
@@ -57,10 +70,4 @@ protected:
 	void Look(const FInputActionValue& value);
 
 	void OnDeath();
-	void UpdateOverHeadHP();
-
-private:
-	float NormalSpeed;
-	float SprintSpeedMultiplier;
-	float SprintSpeed;
 };
